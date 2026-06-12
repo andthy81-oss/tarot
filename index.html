@@ -264,15 +264,7 @@ html, body {
   z-index:5; pointer-events:none; border-radius:50%; opacity:0.88;
   transition: opacity 0.3s;
 }
-/* 가네샤 토글 버튼 */
-#ganeshToggle {
-  position:absolute; left:10px; top:108px;
-  z-index:6; background:rgba(0,0,0,0.45);
-  color:#c9a84c; border:1px solid #c9a84c;
-  border-radius:12px; padding:2px 10px;
-  font-size:0.72rem; cursor:pointer;
-  letter-spacing:0.08em;
-}
+/* 가네샤 토글 버튼 - startScreen 내 배치 */
 </style>
 </head>
 <body>
@@ -302,6 +294,10 @@ html, body {
     </div>
   </div>
 
+  <div id="ganeshPickRow" style="display:none; margin-top:0.8rem; text-align:center;">
+    <button id="ganeshToggle" onclick="toggleGanesh()" style="background:rgba(0,0,0,0.45); color:#c9a84c; border:1px solid #c9a84c; border-radius:12px; padding:4px 18px; font-size:0.78rem; cursor:pointer; letter-spacing:0.08em;">가네샤 숨기기</button>
+  </div>
+
   <div id="startBtn" onclick="doStart()" style="margin-top:1.8rem">✦ 시작 ✦</div>
 </div>
 
@@ -309,7 +305,6 @@ html, body {
   <div id="deckZone">
     <img id="deckBg" src="" alt="">
 <img id="ganeshImg" src="" alt="" style="display:none">
-<button id="ganeshToggle" onclick="toggleGanesh()" style="display:none">가네샤 숨기기</button>
 <div id="deckContainer"></div>
   </div>
   <div id="readingZone">
@@ -469,6 +464,7 @@ function selectCard(idx, card, el, rot) {
   var flipped = false;
   var flipperEl = flipper;
   nc.addEventListener('click', function() {
+    if (nc._dragMoved) return;
     if (!flipped) {
       flipped = true;
       flipperEl.className = 'flipper flipped';
@@ -476,6 +472,7 @@ function selectCard(idx, card, el, rot) {
   });
   nc.addEventListener('touchend', function(e) {
     e.preventDefault();
+    if (nc._dragMoved) return;
     if (!flipped) {
       flipped = true;
       flipperEl.className = 'flipper flipped';
@@ -488,9 +485,12 @@ function selectCard(idx, card, el, rot) {
 }
 
 function makeDraggable(el, container) {
-  var sx, sy, sl, st, active = false;
+  var sx, sy, sl, st, active = false, moved = false;
+
+  // 터치 드래그
   el.addEventListener('touchstart', function(e) {
     active = true;
+    moved = false;
     sx = e.touches[0].clientX;
     sy = e.touches[0].clientY;
     sl = el.offsetLeft;
@@ -499,16 +499,56 @@ function makeDraggable(el, container) {
     el.style.transition = 'none';
     el.style.zIndex = 500;
   }, {passive: true});
+
   el.addEventListener('touchmove', function(e) {
     if (!active) return;
     var dx = e.touches[0].clientX - sx;
     var dy = e.touches[0].clientY - sy;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved = true;
     el.style.left = Math.max(0, Math.min(container.offsetWidth - el.offsetWidth, sl + dx)) + 'px';
     el.style.top = Math.max(0, Math.min(container.offsetHeight - el.offsetHeight, st + dy)) + 'px';
     e.preventDefault();
   }, {passive: false});
+
   el.addEventListener('touchend', function() {
     active = false;
+    // 드래그했으면 뒤집기 이벤트 차단
+    if (moved) {
+      el._dragMoved = true;
+      setTimeout(function() { el._dragMoved = false; }, 50);
+    }
+  });
+
+  // 마우스 드래그
+  el.addEventListener('mousedown', function(e) {
+    active = true;
+    moved = false;
+    sx = e.clientX;
+    sy = e.clientY;
+    sl = el.offsetLeft;
+    st = el.offsetTop;
+    el.style.webkitTransition = 'none';
+    el.style.transition = 'none';
+    el.style.zIndex = 500;
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!active) return;
+    var dx = e.clientX - sx;
+    var dy = e.clientY - sy;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) moved = true;
+    el.style.left = Math.max(0, Math.min(container.offsetWidth - el.offsetWidth, sl + dx)) + 'px';
+    el.style.top = Math.max(0, Math.min(container.offsetHeight - el.offsetHeight, st + dy)) + 'px';
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (!active) return;
+    active = false;
+    if (moved) {
+      el._dragMoved = true;
+      setTimeout(function() { el._dragMoved = false; }, 50);
+    }
   });
 }
 
@@ -549,15 +589,16 @@ function applyBgImages() {
   var day = new Date().getDay();
   var gEl = document.getElementById('ganeshImg');
   var gBtn = document.getElementById('ganeshToggle');
+  var gRow = document.getElementById('ganeshPickRow');
   if (GANESH_MAP[day]) {
     gEl.src = GANESH_MAP[day];
     gEl.style.display = 'block';
     gEl.style.opacity = '0.88';
-    gBtn.style.display = 'block';
     gBtn.textContent = '가네샤 숨기기';
+    if (gRow) gRow.style.display = 'block';
   } else {
     gEl.style.display = 'none';
-    gBtn.style.display = 'none';
+    if (gRow) gRow.style.display = 'none';
   }
 }
 
